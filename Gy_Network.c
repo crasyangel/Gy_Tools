@@ -1,11 +1,8 @@
 //该文件源自http://www.cs.berkeley.edu/~istoica/tmp/i3-stable/i3_client/ping.c，进行了一些改进
+#include "Gy_Network.h"
 
 
-#include <stdio.h>
-#include <string.h>
-#include <stdlib.h>
 #include <fcntl.h>
-#include <errno.h>
 #include <sys/socket.h>
 #include <netinet/in.h>
 #include <linux/icmp.h>
@@ -14,6 +11,7 @@
 #include <time.h>
 #include <arpa/inet.h>
 #include <linux/if.h>
+#include <linux/sockios.h>
 
 #define RECV_BUF_LEN 128
 #define PACKETSIZE  16
@@ -95,7 +93,7 @@ static int send_echo_request(int socket, struct sockaddr_in* to_addr, int seq)
     
     if (nRet < 0)
     {
-		printf("Not enough bytes send, ignoring ICMP packet seq: %d\n", seq);
+		GY_PRINT("Not enough bytes send, ignoring ICMP packet seq: %d\n", seq);
     }
 	
     return nRet;
@@ -119,25 +117,25 @@ static int recv_echo_reply(int socket)
     
     if (nRet < 0) 
 	{
-		printf("echo_reply errno=%d", errno);
+		GY_PRINT("echo_reply errno=%d", errno);
     }
     else if (nRet < sizeof(struct iphdr) + sizeof(struct icmphdr)) 
 	{
-		printf("Not enough bytes received\n");
+		GY_PRINT("Not enough bytes received\n");
     }
     else if ((ip_header->protocol != IPPROTO_ICMP)) 
 	{
-		printf("Incorrect protocol type received\n");
+		GY_PRINT("Incorrect protocol type received\n");
     }
     else if (echoReply->hdr.type != ICMP_ECHOREPLY) 
 	{
-		printf("Not ECHO_REPLY message\n");
+		GY_PRINT("Not ECHO_REPLY message\n");
     }
     else if (addr.sin_addr.s_addr != echoReply->addr) 
 	{
 		struct sockaddr_in in_addr;
 		in_addr.sin_addr.s_addr = echoReply->addr;
-		printf("send address %s does not match recv address %s\n", inet_ntoa(addr.sin_addr), inet_ntoa(in_addr.sin_addr));
+		GY_PRINT("send address %s does not match recv address %s\n", inet_ntoa(addr.sin_addr), inet_ntoa(in_addr.sin_addr));
     }
     else //normal reply
 	{
@@ -153,7 +151,7 @@ static int recv_echo_reply(int socket)
 		elapse_time.tv_sec = current_time.tv_sec - echoReply->time.tv_sec; 
 		elapse_time.tv_usec = current_time.tv_usec - echoReply->time.tv_usec; //ms
 					
-		printf("%d bytes from %s: icmp_req=%d ttl=%d time=%d.%-2.0f ms!!!\n",
+		GY_PRINT("%d bytes from %s: icmp_req=%d ttl=%d time=%d.%-2.0f ms!!!\n",
 			ret_len, inet_ntoa(addr.sin_addr), ret_seq, ret_ttl, (int)elapse_time.tv_sec*1000, (float)elapse_time.tv_usec/1000);
 		return 0;
     }
@@ -175,7 +173,7 @@ int Ping(const char* adress, const uint16_t port, const uint8_t retry)
     ping_socket = socket(PF_INET, SOCK_RAW, IPPROTO_ICMP);
     if ( ping_socket < 0 )
     {
-        printf("socket() error=%d\n", errno);
+        GY_PRINT("socket() error=%d\n", errno);
         return -1;
     }
     addr_host.sin_family = AF_INET;
@@ -185,14 +183,14 @@ int Ping(const char* adress, const uint16_t port, const uint8_t retry)
     ret = bind(ping_socket, (const struct sockaddr *)&addr_host, sizeof(struct sockaddr_in));
     if (ret != 0) 
 	{
-		printf("bind() error=%d\n", errno);
+		GY_PRINT("bind() error=%d\n", errno);
     }
 	
 	//设置ttl为255
     const int val=255;
     if ( setsockopt(ping_socket, SOL_IP, IP_TTL, &val, sizeof(val)) != 0)
     {
-        printf("Set TTL option, error=%d\n", errno);
+        GY_PRINT("Set TTL option, error=%d\n", errno);
     }
 	
 	struct timeval tv;
@@ -209,7 +207,7 @@ int Ping(const char* adress, const uint16_t port, const uint8_t retry)
     addr_ping.sin_port = htons(port);
 	if(inet_aton(adress, &addr_ping.sin_addr) == 0)
 	{
-        printf("inet_aton error=%d\n", errno);
+        GY_PRINT("inet_aton error=%d\n", errno);
         return -1;
 	}
 
@@ -250,7 +248,7 @@ int GetWiredIPAddress(char *ipaddr, uint32_t ipaddr_len)
 
     if((sockfd = socket(AF_INET, SOCK_DGRAM, 0))<0)
     {
-		printf("socket failed, errno is %d\n", errno);
+		GY_PRINT("socket failed, errno is %d\n", errno);
         return -1;
     }
   	ioctl(sockfd, SIOCGIFCONF, &ifconf);    //获取所有接口信息
@@ -263,14 +261,14 @@ int GetWiredIPAddress(char *ipaddr, uint32_t ipaddr_len)
 		{//for ipv4
 		      if(0 == strncasecmp(ifreq->ifr_name, "ppp0", strlen("ppp0"))) //pppoe拨号虚拟网卡
 		      {
-					printf("name = [%s]\n", ifreq->ifr_name);
+					GY_PRINT("name = [%s]\n", ifreq->ifr_name);
 					strncpy(ipaddr,inet_ntoa(((struct sockaddr_in*)&(ifreq->ifr_addr))->sin_addr),ipaddr_len);
 					ipaddr[ipaddr_len-1] = '\0';
 					break;
 		      }
 		      if(0 == strncasecmp(ifreq->ifr_name, "eth0", strlen("eth0"))) //本地网卡
 		      {
-					printf("name = [%s]\n", ifreq->ifr_name);
+					GY_PRINT("name = [%s]\n", ifreq->ifr_name);
 					strncpy(ipaddr,inet_ntoa(((struct sockaddr_in*)&(ifreq->ifr_addr))->sin_addr),ipaddr_len);
 					ipaddr[ipaddr_len-1] = '\0';
 					break;
@@ -279,7 +277,7 @@ int GetWiredIPAddress(char *ipaddr, uint32_t ipaddr_len)
 		}
   	}
 
-    printf("get ip addr: %s, the len is %d\n",ipaddr, ipaddr_len);
+    GY_PRINT("get ip addr: %s, the len is %d\n",ipaddr, ipaddr_len);
     return 0;
 }
 

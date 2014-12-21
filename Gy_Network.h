@@ -1,15 +1,3 @@
-/*******************************************************************************
-COPYRIGHT (C) 2013    SUMAVISION TECHNOLOGIES CO.,LTD.
-
-File name   : onewave_network_helper.h
-    
-Description : Ë¼»ªVOD client network helper
-
-Date          Modification        Name
-----          ------------        ----
-2014.12.12    Created             gy
-*******************************************************************************/
-
 #ifndef _GY_NETWORK_H_
 #define _GY_NETWORK_H_
 
@@ -17,6 +5,8 @@ Date          Modification        Name
 #ifdef  __cplusplus
 extern "C" {
 #endif
+
+#include "Gy_Common.h"
 
 
 int Ping(const char* adress, const uint16_t port, const uint8_t retry);
